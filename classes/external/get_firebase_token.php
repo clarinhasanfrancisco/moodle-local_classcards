@@ -95,16 +95,33 @@ class get_firebase_token extends external_api {
         $siteid = self::site_id();
         $uid = 'moodle-' . $siteid . '-' . $USER->id;
 
+        // Course keys "<site>:<courseid>": the Firestore rules compare them directly with the course of a deck
+        // ("cursos" = every course the user is enrolled in; "prof" = courses where the user is a teacher).
+        $chave = function (int $courseid) use ($siteid): string {
+            return $siteid . ':' . $courseid;
+        };
         $claims = ['moodle' => [
             'site' => $siteid,
             'userid' => (int) $USER->id,
-            'prof' => $professor,
-            'aluno' => $aluno,
+            'cursos' => array_map($chave, array_merge($professor, $aluno)),
+            'prof' => array_map($chave, $professor),
         ]];
-        // Very large enrolments would exceed the Firebase claim limit: keep the teacher list, which guards privileges.
+        // Firebase limits developer claims to 1000 bytes. With too many courses, keep the teacher courses
+        // (which guard privileges) and as many enrolments as fit; the app is told the list is incomplete.
         if (strlen(json_encode($claims)) > self::MAX_CLAIMS_BYTES) {
-            $claims['moodle']['aluno'] = [];
             $claims['moodle']['incompleto'] = true;
+            $todos = $claims['moodle']['cursos'];
+            $claims['moodle']['cursos'] = $claims['moodle']['prof'];
+            foreach ($todos as $curso) {
+                if (in_array($curso, $claims['moodle']['cursos'], true)) {
+                    continue;
+                }
+                $claims['moodle']['cursos'][] = $curso;
+                if (strlen(json_encode($claims)) > self::MAX_CLAIMS_BYTES) {
+                    array_pop($claims['moodle']['cursos']);
+                    break;
+                }
+            }
         }
 
         $now = time();

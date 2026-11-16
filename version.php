@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_classcards';
-$plugin->version   = 2026111502;
+$plugin->version   = 2026111600;
 $plugin->requires  = 2026100500; // Moodle 5.3.
 $plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = '0.3.0';
+$plugin->release   = '0.4.0';
